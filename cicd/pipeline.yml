@@ -39,7 +39,7 @@ Parameters:
     Default: ranjith.karnavar@hobsons.com    
   CodeRepo:
     Type: String
-    Default: https://github.com/urpalranjith/sam-test-basic.git   
+    Default: https://github.com/urpalranjith/sd-dc.git   
   DeployPipeline:
     Type: String
     Default: NA
@@ -465,7 +465,7 @@ Resources:
                 Version: "1"
               Configuration:
                 Owner: urpalranjith
-                Repo: sam-test-basic
+                Repo: sd-dc
                 Branch: !Ref GitBranch
                 OAuthToken:  "{{resolve:secretsmanager:ss-data-channels-cicd:SecretString:ss-data-channels-cicd}}"
                 PollForSourceChanges: false
