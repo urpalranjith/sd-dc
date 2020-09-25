@@ -38,6 +38,7 @@
     "typescript": "3.9.2"
   },
   "dependencies": {
+    "@data-channels/dcSDK": "^0.21.1",
     "request": "^2.88.0"
   },
   "jest": {
