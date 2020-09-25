@@ -1,0 +1,20 @@
+{
+  "name": "split",
+  "configType": "CHANNEL",
+  "product": "piiMask",
+  "flow": ["split"],
+  "steps": {
+    "split": {
+      "processor": "piiMask",
+      "method": "split",
+      "inputs": ["users"],
+      "outputs": ["users_1", "users_2", "users_3", "users_4", "users_5"],
+      "parameters": {
+        "splitRowCount": "10",
+        "isIncludeHeaderCount": true,
+        "splitOutFileCount": 5
+      },
+      "granularity": "row"
+    }
+  }
+}

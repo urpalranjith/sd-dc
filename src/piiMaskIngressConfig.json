@@ -1,0 +1,81 @@
+{
+  "product": "piiMask",
+  "name": "basic-ingress-piiMask",
+  "tenant": {
+    "product": "piiMask",
+    "name": "piiMaskTenant"
+  },
+  "configType": "INGRESS",
+  "jobs": [
+    {
+      "name": "basicIngressJob-piiMask",
+      "channel": {
+        "name": "piiMaskRedRhinos",
+        "product": "piiMask"
+      },
+      "sources": [
+        {
+          "s3": {
+            "key": ".*users\\.(csv|txt)",
+            "bucket": "piiMask/piiMaskTenant"
+          },
+          "name": "users"
+        },
+        {
+          "s3": {
+            "key": "enrollment\\.(csv|txt)",
+            "bucket": "piiMask/piiMaskTenant"
+          },
+          "name": "enrollment"
+        },
+        {
+          "s3": {
+            "key": "relationships\\.(csv|txt)",
+            "bucket": "piiMask/piiMaskTenant"
+          },
+          "name": "relationships"
+        },
+        {
+          "s3": {
+            "key": "sections\\.(csv|txt)",
+            "bucket": "piiMask/piiMaskTenant"
+          },
+          "name": "sections"
+        }
+      ],
+      "workspace": {
+        "bucket": "data-channels-work-dev"
+      },
+      "filesOut": [
+        {
+          "s3": {
+            "key": "piiMask/piiMaskTenant/usersOutput.csv",
+            "bucket": "data-channels-sftp-dev"
+          },
+          "name": "usersOutput"
+        },
+        {
+          "s3": {
+            "key": "piiMask/piiMaskTenant/enrollmentOutput.csv",
+            "bucket": "data-channels-sftp-dev"
+          },
+          "name": "enrollmentOutput"
+        },
+        {
+          "s3": {
+            "key": "piiMask/piiMaskTenant/relationshipsOutput.csv",
+            "bucket": "data-channels-sftp-dev"
+          },
+          "name": "relationshipsOutput"
+        },
+        {
+          "s3": {
+            "key": "piiMask/piiMaskTenant/sectionsOutput.csv",
+            "bucket": "data-channels-sftp-dev"
+          },
+          "name": "sectionsOutput"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Data-Channels processor to mask PII data
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  StageName:
+    Type: String
+    Default: dev
+  ProductLine:
+    Type: String
+    Default: data-channels
+    
+Resources:
+  MaskDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: "./"
+      FunctionName: starfish-data-channels-BuiltInProcessor
+      Handler: dist/index.handler
+      # change timeout, memory, and node version to meet your needs.  node 12 or higher is required by data channels
+      Timeout: 900
+      MemorySize: 3008
+      Runtime: nodejs12.x
+      Policies:
+      # this statement allows your lambda the ability to trigger the built-in data channel log grabber lambda which will grab
+      # cloudwatch logs and put them in s3 for further analysis
+      - Statement:
+          Action: lambda:InvokeFunction
+          Effect: Allow
+          Resource: 'arn:aws:lambda:*:*:function:cdk-data-channels-core-st-cfdatachannelsloggrabber'
+      - Statement:
+        - Sid: DynamoDBPolicy        
+          Action:
+            - 'dynamodb:Scan'
+            - 'dynamodb:BatchWriteItem'
+            - 'dynamodb:BatchGetItem'
+          Effect: Allow                
+          Resource: '*' 
+      - Statement:
+        - Sid: S3WorkspaceListBucketPolicy           
+          Action:
+            - s3:GetBucketLocation
+            - s3:ListBucket
+            - s3:ListBucketMultipartUploads
+            - s3:ListMultipartUploadParts
+          Effect: Allow
+          Resource:
+            arn:aws:s3:::data-channels-work-*
+      - Statement:
+        - Sid: S3WorkspaceChangePolicy        
+          Action:
+            - s3:*
+          Effect: Allow
+          Resource:
+            arn:aws:s3:::data-channels-work-*/workspace/athena/*
+      - Statement:
+        - Sid: AthenaDBQueryPolicy
+          Action:
+            - athena:StartQueryExecution
+            - athena:GetQueryExecution
+          Effect: Allow
+          Resource:
+            arn:aws:athena:*:*:workgroup/primary          
+
+  piifFileConfig:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: piifFileConfig
+      AttributeDefinitions:
+      - AttributeName: fileName
+        AttributeType: S
+      KeySchema:
+      - AttributeName: fileName
+        KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+       - Key: Name
+         Value: piifFileConfig
+       - Key: EnvType
+         Value: !Ref StageName
+       - Key: EnvName
+         Value: !Ref StageName
+       - Key: ProductLine
+         Value: !Ref ProductLine
+       - Key: ProductComponent
+         Value: NA
+       - Key: Provisioner
+         Value: aws-sam
+       - Key: OwnerContact
+         Value: NA
+       - Key: MaintenanceContact
+         Value: NA
+       - Key: CodeRepo
+         Value: https://github.com/Hobsons/starfish-data-channels
+       - Key: PII
+         Value: true      
+  reference:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: reference
+      AttributeDefinitions:
+      - AttributeName: key
+        AttributeType: S
+      KeySchema:
+      - AttributeName: key
+        KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+       - Key: Name
+         Value: reference
+       - Key: EnvType
+         Value: !Ref StageName
+       - Key: EnvName
+         Value: !Ref StageName
+       - Key: ProductLine
+         Value: !Ref ProductLine
+       - Key: ProductComponent
+         Value: NA
+       - Key: Provisioner
+         Value: aws-sam
+       - Key: OwnerContact
+         Value: NA
+       - Key: MaintenanceContact
+         Value: NA
+       - Key: CodeRepo
+         Value: https://github.com/Hobsons/starfish-data-channels
+       - Key: PII
+         Value: true      
+      # Apply a permissions boundary
+      # PermissionsBoundary:
+        # 'arn:aws:iam::${AWS::AccountId}:policy/cdk-data-channels-processor-permission-boundary'
+
+      # Put lambda in a VPC
+      # VpcConfig:
+        # SecurityGroupIds:
+          # - ID here
+        # SubnetIds:
+          # - ID here
+
+  # Add a resource permission
+  # SsDataChannelsCrossAccountInvokePermission:
+    # Type: AWS::Lambda::Permission
+    # Properties:
+      # Action: lambda:InvokeFunction
+      # Principal: __PUT DCHAN ACCOUNT ID HERE__
+      # FunctionName: __PUT Function Name Here__

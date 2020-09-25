@@ -1,0 +1,518 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:
+  StageName:
+    Type: String
+    Default: dev
+  ProductLine:
+    Type: String
+    Default: data-channels
+  Region:
+    Description: Region
+    Type: String
+    Default:  ap-south-1
+  env:
+    Type: String
+    Default: dev
+  DeployStackName:
+    Description: The stack name for CICD
+    Type: String
+    Default: data-channels
+  TargetStackName:
+    Description: The stack name of the target service.
+    Type: String
+    Default: data-channels
+  GitBranch:
+    Description: GitBranch
+    Type: String
+    Default: master
+  DeployParameterOverrides:
+    Description: Parameter to be passed to target service.
+    Type: String
+    Default: "{}"
+  SecurityGroupIds:
+    Type: String
+    Default: ""
+  SubnetIdOne:
+    Type: String
+    Default: ""
+  SubnetIdTwo:
+    Type: String
+    Default: ""    
+    
+Resources:
+####
+  Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      Tags:
+        - Key: MaintainerContact
+          Value: urpalranjith@gmail.com
+        - Key: Repository
+          Value: data-channels
+        - Key: ProductComponent
+          Value: text-messaging-service
+        - Key: OwnerContact
+          Value: urpalranjith@gmail.com
+        - Key: Provisioner
+          Value: cloudformation
+        - Key: ProductLine
+          Value: data-channels
+        - Key: Name
+          Value: ArtifactBucket
+        - Key: Domain
+          Value: ""
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: !Join ["", ["arn:aws:s3:::", !Ref Bucket, "/*"]]
+            Principal: "*"
+
+  ############################################### CODE PIPELINE #######################################
+
+  #################################
+  # BUILD
+  #################################
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+
+  BuildRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:*:*:log-group:/aws/codebuild/
+                    - Ref: Build
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:*:*:log-group:/aws/codebuild/
+                    - Ref: Build
+                    - :*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - Bucket
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - Bucket
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: BuildRoleDefaultPolicy
+      Roles:
+        - Ref: BuildRole
+
+  BuildCodePipelineActionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                - "*"
+        Version: "2012-10-17"
+
+  BuildCodePipelineActionRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+              - codebuild:StopBuild
+              - codebuild:CreateProject
+              - codebuild:DeleteProject
+              - codebuild:BatchGetProjects
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Build
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: BuildCodePipelineActionRoleDefaultPolicy
+      Roles:
+        - Ref: BuildCodePipelineActionRole
+
+  Build:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Tags:
+        - Key: MaintainerContact
+          Value: urpalranjith@gmail.com
+        - Key: Repository
+          Value: ranjith-sam-code
+        - Key: ProductComponent
+          Value: text-messaging-service
+        - Key: OwnerContact
+          Value: urpalranjith@gmail.com
+        - Key: Provisioner
+          Value: cloudformation
+        - Key: ProductLine
+          Value: data-channels
+        - Key: Name
+          Value: CodeBuild
+        - Key: Domain
+          Value: ""
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        EnvironmentVariables:
+         - Name: BUILD_OUTPUT_BUCKET
+           Value: !Ref Bucket
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:2.0
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - BuildRole
+          - Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: "buildspec.yml"
+
+  #################################
+  # DEPLOY
+  #################################
+
+  DeployServiceCodePipelineActionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                - "*"
+        Version: "2012-10-17"
+
+  DeployServiceCodePipelineActionRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DeployServiceRole
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - Bucket
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - Bucket
+                        - Arn
+                    - /*
+          - Action:
+              - cloudformation:CreateStack
+              - cloudformation:DescribeStack*
+              - cloudformation:GetStackPolicy
+              - cloudformation:GetTemplate*
+              - cloudformation:SetStackPolicy
+              - cloudformation:UpdateStack
+              - cloudformation:ValidateTemplate
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :cloudformation:*:*:stack/${DeployStackName}/*
+        Version: "2012-10-17"
+      PolicyName: DeployServiceCodePipelineActionRoleDefaultPolicy
+      Roles:
+        - Ref: DeployServiceCodePipelineActionRole
+
+  DeployServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+        Version: "2012-10-17"
+
+  DeployServiceRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - Bucket
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - Bucket
+                        - Arn
+                    - /*
+          - Action: "*"
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: DeployServiceRoleDefaultPolicy
+      Roles:
+        - Ref: DeployServiceRole
+
+  #################################
+  # CODEPIPELINE
+  #################################
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ssm.amazonaws.com              
+        Version: "2012-10-17"
+
+  PipelineRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cloudformation:*
+            Effect: Allow
+            Resource: "*"
+          - Action: iam:*
+            Effect: Allow
+            Resource: "*"
+          - Action: sqs:*
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:*
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:*
+            Effect: Allow
+            Resource: "*"
+          - Action: apigateway:*
+            Effect: Allow
+            Resource: "*"
+          - Action: EC2:*
+            Effect: Allow
+            Resource: "*"
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - BuildCodePipelineActionRole
+                - Arn
+          - Action:
+                - 'dynamodb:DescribeTable'
+                - 'dynamodb:CreateTable'
+                - 'dynamodb:DeleteTable'
+            Effect: Allow            
+            Resource: "*"  
+          - Action:
+                - 'codebuild:BatchGetProjects'
+                - 'codebuild:CreateProject'
+                - 'codebuild:DeleteProject'
+            Effect: Allow
+            Resource: "*"               
+          - Action:
+                - 'codepipeline:CreatePipeline'
+                - 'codepipeline:GetPipeline'
+                - 'codepipeline:DeletePipeline'
+                - 'codepipeline:GetPipelineState'                
+            Effect: Allow
+            Resource: "*"              
+          - Action: ssm:GetParameters
+            Effect: Allow
+            Resource: "*"    
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DeployServiceCodePipelineActionRole
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineRoleDefaultPolicy
+      Roles:
+        - Ref: PipelineRole
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Tags:
+        - Key: MaintainerContact
+          Value: urpalranjith@gmail.com
+        - Key: Repository
+          Value: ranjith-sam-code
+        - Key: ProductComponent
+          Value: text-messaging-service
+        - Key: OwnerContact
+          Value: urpalranjith@gmail.com
+        - Key: Provisioner
+          Value: cloudformation
+        - Key: ProductLine
+          Value: data-channels
+        - Key: Name
+          Value: Codepipeline
+        - Key: Domain
+          Value: ""
+      RoleArn:
+        Fn::GetAtt:
+          - PipelineRole
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: urpalranjith
+                Repo: sam-test-basic
+                Branch: !Ref GitBranch
+                OAuthToken: "{{resolve:ssm:/github/personal_access_token:1}}"
+                PollForSourceChanges: false
+              Name: GitHub_Source
+              OutputArtifacts:
+                - Name: website_source_code
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: Build
+              InputArtifacts:
+                - Name: website_source_code
+              Name: Build_website
+              OutputArtifacts:
+                - Name: BuildOutput
+              RoleArn:
+                Fn::GetAtt:
+                  - BuildCodePipelineActionRole
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Name: Deployment_Approval
+          Actions:
+            - Name: Approval
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              InputArtifacts:
+                - Name: BuildOutput
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                Capabilities: CAPABILITY_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn:
+                  Fn::GetAtt:
+                    - PipelineRole
+                    - Arn
+                StackName: !Sub ${TargetStackName}-${env}
+                TemplatePath: "BuildOutput::package.yml"
+                ChangeSetName: !Sub a-${DeployStackName}-${env}-Deploy
+              RunOrder: 1
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                StackName: !Sub ${TargetStackName}-${env}
+                RoleArn:
+                  Fn::GetAtt:
+                    - PipelineRole
+                    - Arn
+                ChangeSetName: !Sub a-${DeployStackName}-${env}-Deploy
+              RunOrder: 2
+      ArtifactStore:
+        Location:
+          Ref: Bucket
+        Type: S3
+    DependsOn:
+      - PipelineRoleDefaultPolicy
+      - PipelineRole

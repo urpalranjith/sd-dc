@@ -1,0 +1,15 @@
+{
+  "name": "merge",
+  "configType": "CHANNEL",
+  "product": "piiMask",
+  "flow": ["merge"],
+  "steps": {
+    "merge": {
+      "processor": "starfish-data-channels-BuiltInProcessor",
+      "method": "merge",
+      "inputs": ["users", "all_users"],
+      "outputs": ["mergeOutputFile"],
+      "granularity": "row"
+    }
+  }
+}

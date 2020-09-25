@@ -1,0 +1,71 @@
+{
+  "name": "mask-data",
+  "version": "1.0.0",
+  "description": "Mask pii data",
+  "main": "index.ts",
+  "scripts": {
+    "runStep": "npx ts-node src/runLocalStep.ts",
+    "build": "mkdirp dist && npm run compile",
+    "lint": "tslint --project tsconfig.json",
+    "clean": "shx rm -rf dist coverage",
+    "compile": "tsc",
+    "compile:once": "tsc --noEmit",
+    "compile:watch": "tsc --watch --noEmit",
+    "test": "npm run lint && npm run compile:once && npm run test:cov",
+    "test:cov": "jest --coverage --no-cache --runInBand",
+    "test:nocov": "jest --no-cache --runInBand",
+    "sam-package-sandbox": "sam package --output-template-file packaged-sandbox.yml --s3-bucket data-channels-processor-deployments-sandbox --profile data-channels-sandbox",
+    "sam-deploy-sandbox": "sam deploy --template-file ./packaged-sandbox.yml --stack-name data-channels-builtin-processor --capabilities CAPABILITY_IAM --region us-east-1 --profile data-channels-sandbox",
+    "deploy-sandbox": "npm run build && sam build && npm run sam-package-sandbox && npm run sam-deploy-sandbox",
+    "sam-package-dev": "sam package --output-template-file packaged.yml --s3-bucket ranjith-sam-code",
+    "sam-deploy-dev": "sam deploy --template-file ./packaged.yml --stack-name sample-test --capabilities CAPABILITY_IAM --region ap-south-1",
+    "deploy-dev": "npm run build && sam build && npm run sam-package-dev && npm run sam-deploy-dev",
+    "cicd_deploy-dev": "npm run build && sam build"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.35",
+    "@types/jest": "25.2.2",
+    "@types/minimist": "1.2.0",
+    "@types/node": "14.0.1",
+    "aws-sdk": "^2.571.0",
+    "jest": "25.4.0",
+    "minimist": "1.2.5",
+    "mkdirp": "1.0.4",
+    "shx": "0.3.2",
+    "ts-jest": "25.5.1",
+    "ts-node": "8.10.1",
+    "tslint": "6.1.2",
+    "typescript": "3.9.2"
+  },
+  "dependencies": {
+    "@data-channels/dcSDK": "^0.19.4",
+    "request": "^2.88.0"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!<rootDir>/node_modules/",
+      "!src/**/__*__/*.ts",
+      "!src/types/*.d.ts",
+      "!src/index.ts",
+      "!src/runLocalStep.ts"
+    ],
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
+    ],
+    "roots": [
+      "src"
+    ],
+    "testURL": "http://localhost",
+    "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.ts$",
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest"
+    },
+    "verbose": true
+  }
+}

@@ -1,0 +1,12 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "data-channel-cicd"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-skt160kydc9"
+s3_prefix = "data-channel-cicd"
+region = "ap-south-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Name=\"cicd definition\" StageName=\"dev\" Region=\"ap-south-1\" DeployStackName=\"data-chnnl\" TargetStackName=\"data-chnnl\" ProductComponent=\"cicd\" Provisioner=\"cloudformation\" OwnerContact=\"ranjith.karnavar@hobsons.com\" MaintainerContact=\"ranjith.karnavar@hobsons.com\" CodeRepo=\"https://github.com/urpalranjith/sam-test-basic.git\" DeployPipeline=\"NA\" PII=\"False\" ProductLine=\"data-chnnl\" GitBranch=\"master\" DeployParameterOverrides=\"{}\""
+

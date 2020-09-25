@@ -1,0 +1,20 @@
+{
+  "name": "piiMaskRedRhinos",
+  "configType": "CHANNEL",
+  "product": "piiMask",
+  "flow": ["piiMask"],
+  "steps": {
+    "piiMask": {
+      "processor": "starfish-data-channels-BuiltInProcessor",
+      "method": "piiMask",
+      "inputs": ["users", "enrollment", "relationships", "sections"],
+      "outputs": [
+        "usersOutput",
+        "enrollmentOutput",
+        "relationshipsOutput",
+        "sectionsOutput"
+      ],
+      "granularity": "row"
+    }
+  }
+}
