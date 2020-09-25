@@ -8,9 +8,6 @@ phases:
     pre_build:
         commands:
             - echo pre-build
-            - node --version
-            - npm --version  
-            - ping google.com
             - npm install  
             - echo building npm
             - echo Stage 2
